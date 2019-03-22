@@ -17,29 +17,9 @@ from aiohttp import web
 import check
 
 servers = "servers.csv"
-data = []
+data = {}
+hosts = []
 host_details = {}
-
-
-def init_data():
-    serverfile = "/root/servers"
-    csvfile = serverfile + ".csv"
-    cmd = "cat " + serverfile + " | sed 's/  */ /g' > " + csvfile
-    subprocess.call(cmd, shell=True)
-    f = open(csvfile, 'rU')
-    reader = csv.DictReader(f, delimiter=' ', fieldnames=(
-        "address",
-        "port",
-        "os_name",
-        "os_ver",
-        "type",
-        "hostname",
-        "tags"
-        ))
-
-    if len(data) == 0:
-        for row in reader:
-            data.append(dict(row))
 
 
 async def get_host_details(address, port, command):
@@ -54,10 +34,11 @@ async def get_check_values(lopp):
     global data
     while True:
         await asyncio.sleep(1)
-        for host in data:
+        for host in data['hosts']:
             for key, value in list(host.items()):
                 if key == 'address':
                     address = str(host[key])
+                    data['current_check'] = str(address)
                     try:
                         if host['ping'] == "True":
                             port = host['port']
@@ -85,10 +66,11 @@ async def get_check_values(lopp):
 
 async def check_ping(lopp, data):
     while True:
-        for host in data:
+        for host in data['hosts']:
             for key, value in list(host.items()):
                 if key == 'address':
                     address = str(host[key])
+                    data['current_ping'] = str(address)
 
                     try:
                         await asyncio.sleep(0.05)
@@ -97,8 +79,32 @@ async def check_ping(lopp, data):
                         host['ping'] = 'False'
 
 
+def init_data():
+    serverfile = "/root/servers"
+    csvfile = serverfile + ".csv"
+    cmd = "cat " + serverfile + " | sed 's/  */ /g' > " + csvfile
+    subprocess.call(cmd, shell=True)
+    f = open(csvfile, 'rU')
+    reader = csv.DictReader(f, delimiter=' ', fieldnames=(
+        "address",
+        "port",
+        "os_name",
+        "os_ver",
+        "type",
+        "hostname",
+        "tags"
+        ))
+
+    if len(hosts) == 0:
+        for row in reader:
+            # print(row)
+            hosts.append(dict(row))
+            data['hosts'] = hosts
+
+
 async def main(lopp):
     global data
+    global hosts
     addresses = []
     init_data()
     await asyncio.gather(
@@ -115,11 +121,12 @@ async def dashboard(request):
 async def host_details(request):
     global host_details
     global data
-    #print("host: " + str(request))
+    global hosts
+    print("host: " + str(request))
     host_address = "{}".format(request.rel_url.query['address'])
     command = "{}".format(request.rel_url.query['command'])
 
-    for host in data:
+    for host in data['hosts']:
         for key, value in list(host.items()):
             if key == 'address':
                 address = str(host[key])
