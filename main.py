@@ -134,6 +134,8 @@ async def host_details(request):
                     port = host['port']
 
 
+    if command == "dmidecode":
+        result = await get_host_details(host_address, port, "dmidecode")
     if command == "dmesg":
         result = await get_host_details(host_address, port, "dmesg | tail -n 200")
     if command == "ps":
@@ -142,9 +144,13 @@ async def host_details(request):
         result = await get_host_details(host_address, port, "free -m")
     if command == "mount":
         result = await get_host_details(host_address, port, "mount")
+    if command == "partitions":
+        result = await get_host_details(host_address, port, "cat /proc/partitions")
     if command == "df":
         result = await get_host_details(host_address, port, "df -h")
-    if command == "netstat":
+    if command == "netstata":
+        result = await get_host_details(host_address, port, "netstat -an")
+    if command == "netstatt":
         result = await get_host_details(host_address, port, "netstat -tulpn")
     if command == "route":
         result = await get_host_details(host_address, port, "route -n")
@@ -152,6 +158,8 @@ async def host_details(request):
         result = await get_host_details(host_address, port, "ifconfig -a")
     if command == "time":
         result = await get_host_details(host_address, port, "date")
+    if command == "hwclock":
+        result = await get_host_details(host_address, port, "hwclock --debug")
 
     text = str(result)
     return web.Response(text=text)
