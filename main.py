@@ -23,7 +23,7 @@ data = {}
 hosts = []
 host_details = {}
 
-
+# modal command keys requests
 async def get_host_details(address, port, command):
     await asyncio.sleep(0.05)
     global data
@@ -31,7 +31,7 @@ async def get_host_details(address, port, command):
     result = subprocess.check_output(cmd, shell=True).decode("utf-8")
     return str(result)
 
-
+# get values from ssh for every host based on check tags
 async def get_check_values(lopp):
     global data
     while True:
@@ -47,7 +47,7 @@ async def get_check_values(lopp):
                             host['root_usage'] = str(await check.root_usage(address, port))
                             taglist = host['tags'].split(",")
 
-                            # TODO: check ssh connectivity before use it
+                            # TODO: check ssh connectivity before using it
                             for tag in taglist:
                                 if tag == "checkgeo":
                                     host['checkgeo'] = await check.geo(address)
@@ -65,7 +65,7 @@ async def get_check_values(lopp):
                     except:
                         pass
 
-
+# keep pinging that host every random seconds
 async def ping(address, host):
     global data
     while True:
@@ -87,6 +87,7 @@ async def ping(address, host):
             host['ping'] = 'False'
 
 
+# run a ping function for every host
 async def check_ping(lopp, data):
     for host in data['hosts']:
         for key, value in list(host.items()):
@@ -94,7 +95,7 @@ async def check_ping(lopp, data):
                 address = str(host[key])
                 asyncio.ensure_future(ping(address, host), loop=loop)
 
-
+# convert the text file to cvs and import into the reader dict
 def init_data():
     serverfile = "/root/servers"
     csvfile = serverfile + ".csv"
@@ -110,14 +111,13 @@ def init_data():
         "hostname",
         "tags"
         ))
-
+    # fill the hosts list
     if len(hosts) == 0:
         for row in reader:
-            # print(row)
             hosts.append(dict(row))
             data['hosts'] = hosts
 
-
+# MAIN
 async def main(lopp):
     global data
     global hosts
@@ -128,12 +128,12 @@ async def main(lopp):
        get_check_values(loop),
     )
 
-
+# frontpage requests
 async def dashboard(request):
     text = json.dumps([data])
     return web.Response(text=text)
 
-
+# modal requests
 async def host_details(request):
     global host_details
     global data
@@ -149,7 +149,7 @@ async def host_details(request):
                 if address == host_address:
                     port = host['port']
 
-
+    # modal command keys
     if command == "dmidecode":
         result = await get_host_details(host_address, port, "dmidecode")
     if command == "dmesg":
@@ -184,10 +184,10 @@ async def host_details(request):
 loop = asyncio.get_event_loop()
 app = web.Application()
 cors = aiohttp_cors.setup(app)
+
 resources = [
     ['GET', r'/', dashboard],
     ['GET', r'/host', host_details]]
-
 
 def add_routes(app, resources):
     routes = []
