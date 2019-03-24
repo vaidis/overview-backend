@@ -1,6 +1,7 @@
 #! /usr/bin/env python3.6
 
 import os
+import re
 import sys
 import csv
 import json
@@ -12,6 +13,7 @@ import aiohttp_cors
 import asyncio.subprocess
 from async_timeout import timeout
 from aiohttp import web
+from random import randint
 
 # import webserver
 import check
@@ -64,19 +66,33 @@ async def get_check_values(lopp):
                         pass
 
 
-async def check_ping(lopp, data):
+async def ping(address, host):
+    global data
     while True:
-        for host in data['hosts']:
-            for key, value in list(host.items()):
-                if key == 'address':
-                    address = str(host[key])
-                    data['current_ping'] = str(address)
+        await asyncio.sleep(randint(1,5))
+        cmd = "/bin/ping -c 1 -w5 -W5 " + str(address)
+        proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, shell=True)
+        stdout, stderr = await proc.communicate()
+        if proc.returncode == 0:
+            for line in str(stdout).split(" "):
+                if re.search("time=", line):
+                    latency = line.replace("time=",  "")
 
-                    try:
-                        await asyncio.sleep(0.05)
-                        host['ping'], host['latency'] = await check.network(address)
-                    except:
-                        host['ping'] = 'False'
+            # print("ping " + str(address) + " \t [ OK ] " + str(latency))
+            host['ping'] = "True"
+            host['latency'] = str(latency)
+
+        else:
+            # print("ping " + str(address) + " \t [FAIL] ")
+            host['ping'] = 'False'
+
+
+async def check_ping(lopp, data):
+    for host in data['hosts']:
+        for key, value in list(host.items()):
+            if key == 'address':
+                address = str(host[key])
+                asyncio.ensure_future(ping(address, host), loop=loop)
 
 
 def init_data():
