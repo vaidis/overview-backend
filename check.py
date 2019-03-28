@@ -3,6 +3,27 @@ import asyncio
 import subprocess
 import asyncio.subprocess
 from async_timeout import timeout
+from bs4 import BeautifulSoup
+
+
+async def upsstatus(address):
+    await asyncio.sleep(0.05)
+    result = "0"
+    cmd = "/opt/upsmon/upsstatus.sh " + address
+    process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE)
+    stdout, stderr = await process.communicate()
+    result = stdout.decode("utf-8").strip()
+    return result
+
+
+async def upscapacity(address):
+    await asyncio.sleep(0.05)
+    result = "0"
+    cmd = "/opt/upsmon/upscapacity.sh " + address
+    process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE)
+    stdout, stderr = await process.communicate()
+    result = stdout.decode("utf-8").strip()
+    return result
 
 
 async def geo(address):
@@ -43,38 +64,22 @@ async def temp(address, port):
     try:
         stdout, stderr = await process.communicate()
         return stdout.decode("utf-8").strip()
+
     except:
         raise Exception(some_identifier_here + ' ' + traceback.format_exc())
 
 
-async def root_usage(address, port):
+async def disk(address, port):
     await asyncio.sleep(0.05)
     global data
     cmd = "ssh -o ConnectTimeout=4  root@" + address + " -p " + port + " 'df -Ph /' | awk 'NR == 2{print $5+0 }'"
-    result = subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
-    return str(result)
 
+    try:
+        process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE)
+        stdout, stderr = await process.communicate()
+        result = stdout.decode("utf-8").strip()
+        return str(result)
 
-async def network(address):
-    await asyncio.sleep(0.1)
-    global data
+    except Exception as e:
+        pass
 
-    # TODO: create an async task for every host
-    for waittime in [1, 2, 3]:
-        cmd = "/bin/ping -c 1 -w " + str(waittime) + " -W " + str(waittime) + " " + str(address)
-        proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, shell=True)
-        stdout, stderr = await proc.communicate()
-
-        if proc.returncode == 0:
-            for line in str(stdout).split(" "):
-                if re.search("time=", line):
-                    latency = line.replace("time=",  "")
-
-            # print("ping " + str(address) + " \t [ OK ] " + str(latency))
-            return "True", str(latency)
-
-        else:
-            # print("ping " + str(address) + " \t [FAIL] " + str(waittime))
-            pass
-
-    return "False"

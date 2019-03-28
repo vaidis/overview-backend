@@ -44,17 +44,23 @@ async def get_check_values(lopp):
                     try:
                         if host['ping'] == "True":
                             port = host['port']
-                            host['root_usage'] = str(await check.root_usage(address, port))
                             taglist = host['tags'].split(",")
 
                             # TODO: check ssh connectivity before using it
                             for tag in taglist:
+                                if tag == "checkdisk":
+                                    #host['root_usage'] = str(await check.disk(address, port))
+                                    host['root_usage'] = await check.disk(address, port)
                                 if tag == "checkgeo":
                                     host['checkgeo'] = await check.geo(address)
                                 if tag == "checktemp":
                                     host['checktemp'] = await check.temp(address, port)
                                 if tag == "checkraid":
                                     host['checkraid'] = await check.raid(address, port)
+                                if tag == "checkupsstatus":
+                                    host['checkupsstatus'] = await check.upsstatus(address)
+                                if tag == "checkupscapacity":
+                                    host['checkupscapacity'] = await check.upscapacity(address)                                    
 
                         else:
                             #print("get_check_values() root_usage : " + address +  " : PING FALSE")
@@ -62,6 +68,8 @@ async def get_check_values(lopp):
                             if host.get('checkgeo'): del host['checkgeo']
                             if host.get('checkraid'): del host['checkraid']
                             if host.get('checktemp'): del host['checktemp']
+                            if host.get('checkupsstatus'): del host['checkupsstatus']
+                            if host.get('checkupscapacity'): del host['checkupscapacity']
                     except:
                         pass
 
@@ -69,7 +77,7 @@ async def get_check_values(lopp):
 async def ping(address, host):
     global data
     while True:
-        await asyncio.sleep(randint(1,5))
+        await asyncio.sleep(randint(2,8))
         cmd = "/bin/ping -c 1 -w5 -W5 " + str(address)
         proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, shell=True)
         stdout, stderr = await proc.communicate()
@@ -162,6 +170,8 @@ async def host_details(request):
         result = await get_host_details(host_address, port, "mount")
     if command == "partitions":
         result = await get_host_details(host_address, port, "cat /proc/partitions")
+    if command == "cpuinfo":
+        result = await get_host_details(host_address, port, "cat /proc/cpuinfo")
     if command == "df":
         result = await get_host_details(host_address, port, "df -h")
     if command == "netstata":
