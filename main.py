@@ -18,16 +18,18 @@ from random import randint
 # import webserver
 import check
 
+serverfile = "/root/servers"
 servers = "servers.csv"
 data = {}
 hosts = []
 host_details = {}
+ssh_user = "root"
 
 # modal command keys requests
 async def get_host_details(address, port, command):
     await asyncio.sleep(0.05)
     global data
-    cmd = "ssh -o ConnectTimeout=4  root@" + address + " -p " + port + " '" + command + "'"
+    cmd = "ssh -o ConnectTimeout=4  " + ssh_user + "@" + address + " -p " + port + " '" + command + "'"
     result = subprocess.check_output(cmd, shell=True).decode("utf-8")
     return str(result)
 
@@ -73,6 +75,16 @@ async def get_check_values(lopp):
                     except:
                         pass
 
+# play alarm sound
+async def alarm():
+    number = randint(1,3)
+    cmd = "/usr/bin/mpg123 /opt/overview/overview-back/sounds/alarm" + str(number) + ".mp3"
+    proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, shell=True)
+    try:
+        stdout, stderr = await proc.communicate()
+    except:
+        pass
+
 # keep pinging that host every random seconds
 async def ping(address, host):
     global data
@@ -87,17 +99,25 @@ async def ping(address, host):
                     latency = line.replace("time=",  "")
 
             # print("ping " + str(address) + " \t [ OK ] " + str(latency))
+            if 'ping' in host:
+                if host['ping'] == 'False':
+                    print("ALARM OFF")
             host['ping'] = "True"
             host['latency'] = str(latency)
 
         else:
             # print("ping " + str(address) + " \t [FAIL] ")
+            if 'ping' in host:
+                if host['ping'] == 'True':
+                    print("ALARM ON")
+                    alarm()
             host['ping'] = 'False'
 
 
 # run a ping function for every host
 async def check_ping(lopp, data):
     for host in data['hosts']:
+        await asyncio.sleep(0.2)
         for key, value in list(host.items()):
             if key == 'address':
                 address = str(host[key])
@@ -105,7 +125,6 @@ async def check_ping(lopp, data):
 
 # convert the text file to cvs and import into the reader dict
 def init_data():
-    serverfile = "/root/servers"
     csvfile = serverfile + ".csv"
     cmd = "cat " + serverfile + " | sed 's/  */ /g' > " + csvfile
     subprocess.call(cmd, shell=True)
@@ -158,8 +177,12 @@ async def host_details(request):
                     port = host['port']
 
     # modal command keys
-    if command == "dmidecode":
-        result = await get_host_details(host_address, port, "dmidecode")
+    if command == "lsusb":
+        result = await get_host_details(host_address, port, "lsusb")
+    if command == "lspci":
+        result = await get_host_details(host_address, port, "lspci")
+    if command == "lsmod":
+        result = await get_host_details(host_address, port, "lsmod")
     if command == "dmesg":
         result = await get_host_details(host_address, port, "dmesg | tail -n 200")
     if command == "ps":
@@ -236,3 +259,4 @@ finally:
     print("Closing Loop")
     loop.stop()
     loop.close()
+
