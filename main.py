@@ -75,21 +75,13 @@ async def get_check_values(lopp):
                     except:
                         pass
 
-# play alarm sound
-async def alarm():
-    number = randint(1,3)
-    cmd = "/usr/bin/mpg123 /opt/overview/overview-back/sounds/alarm" + str(number) + ".mp3"
-    proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, shell=True)
-    try:
-        stdout, stderr = await proc.communicate()
-    except:
-        pass
 
 # keep pinging that host every random seconds
 async def ping(address, host):
     global data
     while True:
-        await asyncio.sleep(randint(2,8))
+        # await asyncio.sleep(randint(2,8))
+        await asyncio.sleep(0.5)
         cmd = "/bin/ping -c 1 -w5 -W5 " + str(address)
         proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, shell=True)
         stdout, stderr = await proc.communicate()
@@ -101,7 +93,8 @@ async def ping(address, host):
             # print("ping " + str(address) + " \t [ OK ] " + str(latency))
             if 'ping' in host:
                 if host['ping'] == 'False':
-                    print("ALARM OFF")
+                    data['alarm_status'] = False
+                    print("ALARM OFF " + str(address) + " " + time.strftime("%Y-%m-%d %H:%M"))
             host['ping'] = "True"
             host['latency'] = str(latency)
 
@@ -109,8 +102,8 @@ async def ping(address, host):
             # print("ping " + str(address) + " \t [FAIL] ")
             if 'ping' in host:
                 if host['ping'] == 'True':
-                    print("ALARM ON")
-                    alarm()
+                    print("ALARM ON  " + str(address) + " " + time.strftime("%Y-%m-%d %H:%M"))
+                    data['alarm_status'] = True
             host['ping'] = 'False'
 
 
@@ -150,6 +143,7 @@ async def main(lopp):
     global hosts
     addresses = []
     init_data()
+    data['alarm_status'] = False
     await asyncio.gather(
        check_ping(loop, data),
        get_check_values(loop),
@@ -158,6 +152,11 @@ async def main(lopp):
 # frontpage requests
 async def dashboard(request):
     text = json.dumps([data])
+    return web.Response(text=text)
+
+# alarm requests
+async def alarm(request):
+    text = json.dumps(data['alarm_status'])
     return web.Response(text=text)
 
 # modal requests
@@ -220,7 +219,8 @@ cors = aiohttp_cors.setup(app)
 
 resources = [
     ['GET', r'/', dashboard],
-    ['GET', r'/host', host_details]]
+    ['GET', r'/host', host_details],
+        ['GET', r'/alarm', alarm]]
 
 def add_routes(app, resources):
     routes = []
