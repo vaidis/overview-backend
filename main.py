@@ -51,7 +51,6 @@ async def get_check_values(lopp):
                             # TODO: check ssh connectivity before using it
                             for tag in taglist:
                                 if tag == "checkdisk":
-                                    #host['root_usage'] = str(await check.disk(address, port))
                                     host['root_usage'] = await check.disk(address, port)
                                 if tag == "checkgeo":
                                     host['checkgeo'] = await check.geo(address)
@@ -75,46 +74,49 @@ async def get_check_values(lopp):
                     except:
                         pass
 
-
-# keep pinging that host every random seconds
+# if not reply, then ping again before mark this host as down
 async def ping(address, host):
     global data
-    while True:
-        # await asyncio.sleep(randint(2,8))
-        await asyncio.sleep(0.5)
-        cmd = "/bin/ping -c 1 -w5 -W5 " + str(address)
+    for waitsec in [2, 4, 6]:
+
+        cmd = "/bin/ping -c 1 -w" + str(waitsec) + " -W" + str(waitsec) + " " + str(address)
         proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, shell=True)
         stdout, stderr = await proc.communicate()
+
         if proc.returncode == 0:
             for line in str(stdout).split(" "):
                 if re.search("time=", line):
                     latency = line.replace("time=",  "")
+                    if 'ping' in host:
+                        if host['ping'] == 'False':
+                            data['alarm']['status'] = False
+                            print("ALARM OFF " + str(address) + " " + time.strftime("%Y-%m-%d %H:%M"))
+                    return "True", str(latency)
 
-            # print("ping " + str(address) + " \t [ OK ] " + str(latency))
-            if 'ping' in host:
-                if host['ping'] == 'False':
-                    data['alarm_status'] = False
-                    print("ALARM OFF " + str(address) + " " + time.strftime("%Y-%m-%d %H:%M"))
-            host['ping'] = "True"
-            host['latency'] = str(latency)
+    if 'ping' in host:
+        if host['ping'] == 'True':
+            print("ALARM ON  " + str(address) + " " + time.strftime("%Y-%m-%d %H:%M"))
+            data['alarm']['status'] = True
+    return "False", "Null"
+  
 
-        else:
-            # print("ping " + str(address) + " \t [FAIL] ")
-            if 'ping' in host:
-                if host['ping'] == 'True':
-                    print("ALARM ON  " + str(address) + " " + time.strftime("%Y-%m-%d %H:%M"))
-                    data['alarm_status'] = True
-            host['ping'] = 'False'
+# make a ping loop for every host
+async def ping_loop(address, host):
+    global data
+    while True:
+        await asyncio.sleep(randint(1,5))
+        host['ping'], host['latency'] = await ping(address, host)
 
 
-# run a ping function for every host
+# ping every host
 async def check_ping(lopp, data):
     for host in data['hosts']:
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.1)
         for key, value in list(host.items()):
             if key == 'address':
                 address = str(host[key])
-                asyncio.ensure_future(ping(address, host), loop=loop)
+                asyncio.ensure_future(ping_loop(address, host), loop=loop)
+
 
 # convert the text file to cvs and import into the reader dict
 def init_data():
@@ -143,7 +145,11 @@ async def main(lopp):
     global hosts
     addresses = []
     init_data()
-    data['alarm_status'] = False
+
+    data['alarm'] = {}
+    data['alarm']['status'] = False
+    data['alarm']['hosts'] = {}
+
     await asyncio.gather(
        check_ping(loop, data),
        get_check_values(loop),
@@ -152,12 +158,22 @@ async def main(lopp):
 # frontpage requests
 async def dashboard(request):
     text = json.dumps([data])
-    return web.Response(text=text)
+    return web.json_response(text=text, content_type='application/json', dumps=json.dumps)
 
 # alarm requests
 async def alarm(request):
-    text = json.dumps(data['alarm_status'])
-    return web.Response(text=text)
+    global data
+    data['alarm']['hosts'].clear()
+    for host in data['hosts']:
+        if 'ping' in host:
+            if host['ping'] == 'False':
+                if str(host['address']) not in data['alarm']['hosts']:
+                    data['alarm']['hosts'][str(host['address'])] = host['hostname']
+                else:
+                    print("host already in alarm dict")
+
+    text = json.dumps(data['alarm'])
+    return web.json_response(text=text, content_type='application/json', dumps=json.dumps)
 
 # modal requests
 async def host_details(request):
@@ -210,7 +226,7 @@ async def host_details(request):
         result = await get_host_details(host_address, port, "hwclock --debug")
 
     text = str(result)
-    return web.Response(text=text)
+    return web.json_response(text=text, content_type='application/json', dumps=json.dumps)
 
 
 loop = asyncio.get_event_loop()
@@ -220,7 +236,7 @@ cors = aiohttp_cors.setup(app)
 resources = [
     ['GET', r'/', dashboard],
     ['GET', r'/host', host_details],
-        ['GET', r'/alarm', alarm]]
+    ['GET', r'/alarm', alarm]]
 
 def add_routes(app, resources):
     routes = []
@@ -259,4 +275,3 @@ finally:
     print("Closing Loop")
     loop.stop()
     loop.close()
-
