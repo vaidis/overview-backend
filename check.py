@@ -1,4 +1,5 @@
 import re
+import time
 import asyncio
 import subprocess
 import asyncio.subprocess
@@ -33,6 +34,23 @@ async def geo(address):
     process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE)
     stdout, stderr = await process.communicate()
     result = stdout.decode("utf-8").strip()
+
+    if (result == "302"):
+        return "True"
+    else:
+        return "False"
+
+async def clock(address, port):
+    print("clock " + str(address) + ":" + str(port))
+    cmd = "ssh root@" + address + " -p " + port + " date +'%s'"
+    process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE)
+    stdout, stderr = await process.communicate()
+    result = stdout.decode("utf-8").strip()
+
+    difference = remoteclock - localclock
+    print("clock difference: " + str(difference))
+
+    return difference
 
     if (result == "302"):
         return "True"

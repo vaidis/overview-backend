@@ -61,7 +61,9 @@ async def get_check_values(lopp):
                                 if tag == "checkupsstatus":
                                     host['checkupsstatus'] = await check.upsstatus(address)
                                 if tag == "checkupscapacity":
-                                    host['checkupscapacity'] = await check.upscapacity(address)                                    
+                                    host['checkupscapacity'] = await check.upscapacity(address)
+                                if tag == "checkclock":
+                                    host['checkclock'] = await check.clock(address, port)
 
                         else:
                             #print("get_check_values() root_usage : " + address +  " : PING FALSE")
@@ -71,13 +73,15 @@ async def get_check_values(lopp):
                             if host.get('checktemp'): del host['checktemp']
                             if host.get('checkupsstatus'): del host['checkupsstatus']
                             if host.get('checkupscapacity'): del host['checkupscapacity']
+                            if host.get('checkclock'): del host['checkclock']
                     except:
                         pass
 
 # if not reply, then ping again before mark this host as down
 async def ping(address, host):
     global data
-    for waitsec in [2, 4, 6]:
+    #for waitsec in [2, 4, 6, 8]:
+    for waitsec in [2, 4 ]:
 
         cmd = "/bin/ping -c 1 -w" + str(waitsec) + " -W" + str(waitsec) + " " + str(address)
         proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, shell=True)
@@ -98,13 +102,13 @@ async def ping(address, host):
             print("ALARM ON  " + str(address) + " " + time.strftime("%Y-%m-%d %H:%M"))
             data['alarm']['status'] = True
     return "False", "Null"
-  
+
 
 # make a ping loop for every host
 async def ping_loop(address, host):
     global data
     while True:
-        await asyncio.sleep(randint(1,5))
+        await asyncio.sleep(randint(1,2))
         host['ping'], host['latency'] = await ping(address, host)
 
 
