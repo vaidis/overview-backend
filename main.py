@@ -65,6 +65,7 @@ async def get_check_values(lopp):
                                 if tag == "checkclock":
                                     host['checkclock'] = await check.clock(address, port)
 
+
                         else:
                             #print("get_check_values() root_usage : " + address +  " : PING FALSE")
                             if host.get('root_usage'): del host['root_usage']

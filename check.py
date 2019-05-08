@@ -1,5 +1,6 @@
 import re
 import time
+import datetime
 import asyncio
 import subprocess
 import asyncio.subprocess
@@ -41,21 +42,15 @@ async def geo(address):
         return "False"
 
 async def clock(address, port):
-    print("clock " + str(address) + ":" + str(port))
     cmd = "ssh root@" + address + " -p " + port + " date +'%s'"
     process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE)
     stdout, stderr = await process.communicate()
     result = stdout.decode("utf-8").strip()
 
-    difference = remoteclock - localclock
-    print("clock difference: " + str(difference))
+    localclock = time.time()
+    difference = int(result) - int(localclock)
 
     return difference
-
-    if (result == "302"):
-        return "True"
-    else:
-        return "False"
 
 
 async def raid(address, port):
