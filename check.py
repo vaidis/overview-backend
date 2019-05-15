@@ -42,7 +42,7 @@ async def geo(address):
         return "False"
 
 async def clock(address, port):
-    cmd = "ssh root@" + address + " -p " + port + " date +'%s'"
+    cmd = "ssh -o ConnectTimeout=6 root@" + address + " -p " + port + " date +'%s'"
     process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE)
     stdout, stderr = await process.communicate()
     result = stdout.decode("utf-8").strip()
@@ -56,7 +56,7 @@ async def clock(address, port):
 async def raid(address, port):
     await asyncio.sleep(0.05)
     global data
-    cmd = "ssh root@" + address + " -p " + port + " 'megaraid_status.py' | grep -e 'HDD\|SSD' | awk -F\| '{print $5}'"
+    cmd = "ssh -o ConnectTimeout=5 root@" + address + " -p " + port + " 'megaraid_status.py' | grep -e 'HDD\|SSD' | awk -F\| '{print $5}'"
     process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE)
     stdout, stderr = await process.communicate()
     result = stdout.decode("utf-8").strip()
@@ -71,7 +71,7 @@ async def raid(address, port):
 
 async def temp(address, port):
     await asyncio.sleep(0.05)
-    cmd = "ssh root@" + address + " -p " + port + " cat /sys/class/thermal/thermal_zone0/temp | head -c 2"
+    cmd = "ssh -o ConnectTimeout=5 root@" + address + " -p " + port + " cat /sys/class/thermal/thermal_zone0/temp | head -c 2"
     process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE)
 
     try:
@@ -85,7 +85,7 @@ async def temp(address, port):
 async def disk(address, port):
     await asyncio.sleep(0.05)
     global data
-    cmd = "ssh -o ConnectTimeout=4  root@" + address + " -p " + port + " 'df -Ph /' | awk 'NR == 2{print $5+0 }'"
+    cmd = "ssh -o ConnectTimeout=6 root@" + address + " -p " + port + " 'df -Ph /' | awk 'NR == 2{print $5+0 }'"
 
     try:
         process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE)

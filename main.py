@@ -7,6 +7,7 @@ import csv
 import json
 import time
 import asyncio
+import aiomysql
 import datetime
 import subprocess
 import aiohttp_cors
@@ -24,6 +25,7 @@ data = {}
 hosts = []
 host_details = {}
 ssh_user = "root"
+
 
 # modal command keys requests
 async def get_host_details(address, port, command):
@@ -81,8 +83,8 @@ async def get_check_values(lopp):
 # if not reply, then ping again before mark this host as down
 async def ping(address, host):
     global data
-    #for waitsec in [2, 4, 6, 8]:
-    for waitsec in [2, 4 ]:
+    for waitsec in [2, 4, 6]:
+    # for waitsec in [2, 4 ]:
 
         cmd = "/bin/ping -c 1 -w" + str(waitsec) + " -W" + str(waitsec) + " " + str(address)
         proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, shell=True)
